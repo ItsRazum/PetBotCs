@@ -116,7 +116,7 @@ namespace PetBotCs
         {
             Cooldown.Stop();
             Cooldown.Dispose();
-            ITelegramBotClient botClient = new TelegramBotClient("6334305252:AAGz6ldivq79Hzk0iFD1MbxYxoajSJDIdjw");
+            ITelegramBotClient botClient = new TelegramBotClient("Ключ Telegram-бота");
             sql database = new("Данные для подключения к SQL");
             ReplyKeyboardMarkup keyboard = null;
             if (game.GetPlayerByUserId(userId).Pos.Equals(1))
