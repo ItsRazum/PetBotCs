@@ -9,3 +9,4 @@ Open-source Bot with included mini-game and SQL-database Read/Write system.
 p1id	p2id	p1pos	 p2pos 	p1hp	p2hp	p1name	p2name	rootgroup	isAllowed  p1IsReady	p2IsReady 	p1IsMoved 	p2IsMoved 	IsFriendly
 
 Обязательно создайте эту таблицу! Иначе бот работать не будет!
+Документация к боту: https://petbotcs.gitbook.io/petbotcs/
