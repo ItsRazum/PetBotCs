@@ -19,7 +19,7 @@ namespace PetBotCs
 
         public static async Task UpdateLog(ITelegramBotClient botClient, Update update)
         {
-            sql database = new("server=127.0.0.1;uid=phpmyadmin;pwd=oralcumshot;database=phpmyadmin");
+            sql database = new("Данные для подключения к SQL");
             List<string> tableNames = database.GetTableNames();
             foreach (string tableName in tableNames)
             {
