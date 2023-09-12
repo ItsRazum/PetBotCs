@@ -11,7 +11,7 @@ namespace PetBotCs.Game
     {
         public System.Timers.Timer BlockCooldown { get; set; }
         public System.Timers.Timer AttackCooldown;
-        static sql database = new("server=127.0.0.1;uid=phpmyadmin;pwd=oralcumshot;database=phpmyadmin");
+        static sql database = new("Данные для подключения к SQL");
         public Player p1 { get; set; }
         public Player p2 { get; set; }
         private long userId { get; set; }
