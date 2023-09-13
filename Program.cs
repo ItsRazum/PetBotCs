@@ -16,7 +16,7 @@ namespace PetBotCs
 {
     class Program
     {
-        static readonly ITelegramBotClient bot = new TelegramBotClient("6334305252:AAGz6ldivq79Hzk0iFD1MbxYxoajSJDIdjw");
+        static readonly ITelegramBotClient bot = new TelegramBotClient("Ключ Telegram-бота");
         static sql database = new("Данные для подключения к SQL");
 
 
