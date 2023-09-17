@@ -1,5 +1,5 @@
 # PetBotCs
-Open-source Bot with included mini-game and SQL-database Read/Write system.
+An Open-source Bot with included mini-game and SQL-database Read/Write system.
 
 
 Бот полностью настраиваемый, можно подключать его к своему боту и менять сообщения в коде на те, на которые вы пожелаете.
