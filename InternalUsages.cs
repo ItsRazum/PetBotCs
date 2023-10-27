@@ -14,7 +14,7 @@ namespace PetBotCs
 {
     internal static class InternalUsages
     {
-        static sql database = new ("Данные для подключения к SQL");
+        static sql database = new (appConfig.Config.MySQLConnection);
         public static async Task ResetIsUsedToday()
         {
             List<string> tableNames = database.GetTableNames();

@@ -36,7 +36,7 @@ namespace PetBotCs
 
         public static sql MySql()
         {
-            return new sql("Данные для подключения к SQL");
+            return new sql(appConfig.Config.MySQLConnection);
         }
         public static async Task Cut(ITelegramBotClient botClient, Update update, string repliedUserName, long repliedUserId, string userTag)
         {
@@ -49,8 +49,8 @@ namespace PetBotCs
             var groupId = message.Chat.Id;
             Random random = new();
             int randomNum = random.Next(1, 4);
-            var dickCutter = $"UPDATE `group{groupId}` SET `size` = `size` - {randomNum} WHERE `name` = {userId};";
-            var repliedDickCutter = $"UPDATE `group{groupId}` SET `size` = `size` - {randomNum} WHERE `name` = {repliedUserId};";
+            var petCutter = $"UPDATE `group{groupId}` SET `size` = `size` - {randomNum} WHERE `name` = {userId};";
+            var repliedPetCutter = $"UPDATE `group{groupId}` SET `size` = `size` - {randomNum} WHERE `name` = {repliedUserId};";
             var userIdGetter = $"SELECT `name` FROM `group{groupId}` WHERE name = '{userId}';";
             var usageGetter = $"SELECT `IsCuttedToday` FROM `group{groupId}` WHERE name = '{userId}';";
             var sizeGetter = $"SELECT `size` FROM `group{groupId}` WHERE name = '{userId}';";
@@ -73,7 +73,7 @@ namespace PetBotCs
 
                 if (repliedUserId == userId)
                 {
-                    await botClient.SendTextMessageAsync(message.Chat, "Зачем ты режешь хуй сам себе?");
+                    await botClient.SendTextMessageAsync(message.Chat, "Зачем ты воруешь у самого себя?");
                 }
                 else if (repliedUserId == null)
                 {
@@ -102,7 +102,7 @@ namespace PetBotCs
                         int currentSize = int.Parse(summary);
                         int sizeValue = currentSize - randomNum;
                         await botClient.SendTextMessageAsync(message.Chat, $"✂️{userName}, о нет! Ты пытался украсть еду игрока {repliedUserName}, однако что-то перепутал и случайно испортил еду для своего питомца! Теперь он похудел на {randomNum}!😬\nСейчас размер твоего питомца составляет {sizeValue}.\nСледующая возможность воровать еду завтра!");
-                        MySql().Read(dickCutter, "");
+                        MySql().Read(petCutter, "");
                         MySql().Read(usageBlocker, "");
                     }
                     else
@@ -110,7 +110,7 @@ namespace PetBotCs
                         int repliedCurrentSize = int.Parse(RepliedSummary);
                         int repliedSizeValue = repliedCurrentSize - randomNum;
                         await botClient.SendTextMessageAsync(message.Chat, $"✂️{userName} успешно своровал еду питомца пользователя {repliedUserName}! Теперь его питомец похудел на {randomNum}!\nСейчас его размер составляет {repliedSizeValue}\nСледующая возможность воровать еду завтра!");
-                        MySql().Read(repliedDickCutter, "");
+                        MySql().Read(repliedPetCutter, "");
                         MySql().Read(usageBlocker, "");
                     }
                 }

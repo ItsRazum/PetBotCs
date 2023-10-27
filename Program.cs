@@ -11,32 +11,97 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using PetBotCs.Game;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json;
 
 namespace PetBotCs
 {
+    public class BotConfig
+    {
+        public string BotToken { get; set; }
+        public string MySQLConnection { get; set; }
+    }
+
+    public static class appConfig
+    {
+        public static BotConfig Config { get; private set; }
+
+        static appConfig()
+        {
+            string configFilePath = "config.json";
+            Config = ReadConfig(configFilePath);
+        }
+
+        private static BotConfig ReadConfig(string configFilePath)
+        {
+            string json = System.IO.File.ReadAllText(configFilePath);
+            return JsonConvert.DeserializeObject<BotConfig>(json);
+        }
+    }
+
     class Program
     {
-        static readonly ITelegramBotClient bot = new TelegramBotClient("Ключ Telegram-бота");
-        static sql database = new("Данные для подключения к SQL");
+        static readonly ITelegramBotClient bot = new TelegramBotClient(appConfig.Config.BotToken);
+        static sql database = new(appConfig.Config.MySQLConnection);
 
+        public static async void FirstStart()
+        {
+            string Token = null;
+            Console.Write("Введите токен бота: ");
+            Token = Console.ReadLine();
+            switch (Token)
+            {
+                case null:
+                    Console.WriteLine("Неверное значение.");
+                    FirstStart();
+                    break;
+                default:
+                    Console.WriteLine("Проверка...");
+                    var botChecker = new TelegramBotClient(Token);
+                    User botUser = await botChecker.GetMeAsync();
+                    Console.WriteLine($"Бот: {botUser.FirstName + botUser.LastName}\nТег: {botUser.Username}\n\nВсё верно? (y/n)");
+                    string res = Console.ReadLine();
+                    switch (res)
+                    {
+                        case "y":
+                            SQLRead();
+                            break;
+                        case "n":
+                            FirstStart();
+                            break;
+                        }
+                    break;
+            }
+            
+        }
+        public static void SQLRead()
+        {
+            string SQL = null;
+            Console.WriteLine("Отлично. Теперь введите ключ подключения к базе данных:\n\n(Формат: server=0.0.0.0;uid=username;pwd=password;database=database name)");
+            SQL = Console.ReadLine();
+            Console.WriteLine("Выполняется попытка подключения к введённой базе данных...");
+        }
 
         static async Task Main(string[] args)
         {
-            Update update;
-
             if (args is null)
             {
                 throw new ArgumentNullException(nameof(args));
             }
 
-            Console.WriteLine($"Бот под названием '{(await bot.GetMeAsync()).FirstName}' запущен!");
+            try
+            {
+                Console.WriteLine($"Бот под названием '{(await bot.GetMeAsync()).FirstName}' запущен!");
+            }
+            catch
+            {
+                FirstStart();
+            }
             InternalUsages.SetTimer();
 
             var GetGames = $"SELECT `p1id` FROM `duels`;";
             List<string> p1idString = database.Read(GetGames, "p1id");
             foreach (var idString in p1idString)
             { Lobby.Games.Add(new Game.Game(long.Parse(idString))); }
-
 
             var cts = new CancellationTokenSource();
             var cancellationToken = cts.Token;
@@ -51,7 +116,7 @@ namespace PetBotCs
 
         public static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
         {
-            Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(update));
+            Console.WriteLine(JsonConvert.SerializeObject(update));
             var message = update.Message;
 
             if (update.Type == UpdateType.MyChatMember)
@@ -181,7 +246,7 @@ namespace PetBotCs
                             }
                             else if (message.ReplyToMessage.From.IsBot == true)
                             {
-                                await botClient.SendTextMessageAsync(message.Chat, "Отправлять ботам запрос на дуэль запрещено! У них же нет хуя!");
+                                await botClient.SendTextMessageAsync(message.Chat, "Отправлять ботам запрос на дуэль запрещено! У них же нет питомца!");
                             }
                             else
                             {
@@ -200,7 +265,7 @@ namespace PetBotCs
                             }
                             else if (message.ReplyToMessage.From.IsBot == true)
                             {
-                                await botClient.SendTextMessageAsync(message.Chat, "😵Отправлять ботам запрос на дуэль запрещено! У них же нет хуя!");
+                                await botClient.SendTextMessageAsync(message.Chat, "😵Отправлять ботам запрос на дуэль запрещено! У них же нет питомца!");
                             }
                             else
                             {
@@ -211,24 +276,24 @@ namespace PetBotCs
                             }
                             break;
 
-                        case "/dickinass":
-                        case $"/dickinass{botname}":
+                        case "/mypet":
+                        case $"/mypet{botname}":
                             if (message.Chat.Type != ChatType.Private)
                             { await Mypet.Dblogic(botClient, update); }
                             else
                             { await botClient.SendTextMessageAsync(message.Chat, "Данная команда недоступна в личных сообщениях!"); }
                             break;
 
-                        case "/dicktop":
-                        case $"/dicktop{botname}":
+                        case "/pettop":
+                        case $"/pettop{botname}":
                             if (message.Chat.Type != ChatType.Private)
                             { await top.pettop(botClient, update, database); }
                             else
                                 await botClient.SendTextMessageAsync(message.Chat, "Данная команда недоступна в личных сообщениях!");
                             break;
 
-                        case "/dickcut":
-                        case $"/dickcut{botname}":
+                        case "/stealfood":
+                        case $"/stealfood{botname}":
                             if (message.Chat.Type != ChatType.Private)
                             {
                                 if (message.ReplyToMessage?.From.Id == null)
@@ -403,7 +468,7 @@ namespace PetBotCs
                                     int[] Up = new[] { 1, 2, 3 };
                                     if (Up.Contains(Game.Game.getSessionByUserId(userId).GetPlayerByUserId(userId).Pos))
                                     {
-                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться махать нельзя!");
+                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться нельзя!");
                                     }
                                     else
                                     {
@@ -424,7 +489,7 @@ namespace PetBotCs
                                     int[] Left = new[] { 1, 7, 13 };
                                     if (Left.Contains(Game.Game.getSessionByUserId(userId).GetPlayerByUserId(userId).Pos))
                                     {
-                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться махать нельзя!");
+                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться нельзя!");
                                     }
                                     else
                                     {
@@ -445,7 +510,7 @@ namespace PetBotCs
                                     int[] Right = new[] { 3, 9, 15 };
                                     if (Right.Contains(Game.Game.getSessionByUserId(userId).GetPlayerByUserId(userId).Pos))
                                     {
-                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться махать нельзя!");
+                                        await botClient.SendTextMessageAsync(message.Chat, "⛔️Дальше в этом двигаться нельзя!");
                                     }
                                     else
                                     {
@@ -525,7 +590,7 @@ namespace PetBotCs
         }
         public static async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
         {
-            Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(exception));
+            Console.WriteLine(JsonConvert.SerializeObject(exception));
         }
     }
 }

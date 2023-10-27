@@ -15,8 +15,8 @@ namespace PetBotCs
         {
             try
             {
-                List<Dictionary<string, object>> topDicks = await database.ReadTopPets(topCount, GroupId);
-                if (topDicks.Count == 0)
+                List<Dictionary<string, object>> topPets = await database.ReadTopPets(topCount, GroupId);
+                if (topPets.Count == 0)
                 {
                     return "Топ пуст";
                 }
@@ -24,10 +24,10 @@ namespace PetBotCs
                 {
                     StringBuilder sb = new();
                     sb.AppendLine("📋Топ самых больших питомцев:\n");
-                    for (int i = 0; i < topDicks.Count; i++)
+                    for (int i = 0; i < topPets.Count; i++)
                     {
-                        var firstname = topDicks[i]["firstname"];
-                        var size = topDicks[i]["size"];
+                        var firstname = topPets[i]["firstname"];
+                        var size = topPets[i]["size"];
                         sb.AppendLine($"{i + 1}. {firstname}: {size}");
                     }
                     return sb.ToString();

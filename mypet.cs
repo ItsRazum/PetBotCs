@@ -15,7 +15,7 @@ namespace PetBotCs
     {
         public static sql MySql()
         {
-            return new sql("Данные для подключения к SQL");
+            return new sql(appConfig.Config.MySQLConnection);
         }
 
         public static async Task Dblogic(ITelegramBotClient botClient, Update update)

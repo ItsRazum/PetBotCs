@@ -13,8 +13,11 @@ using System.Runtime.CompilerServices;
 using PetBotCs.Game;
 using System.Collections;
 using System.Collections.Generic;
-using PetBotCs;
 using Telegram.Bot.Types.Enums;
+using System.Xml.Linq;
+using System.Text.RegularExpressions;
+using System.Runtime.ConstrainedExecution;
+using PetBotCs;
 
 namespace PetBotCs
 {
@@ -59,7 +62,7 @@ namespace PetBotCs
 
         public static sql MySql()
         {
-            return new sql("Данные для подключения к SQL");
+            return new sql(appConfig.Config.MySQLConnection);
         }
 
         public static volatile List<Game.Game> Games = new();
@@ -79,9 +82,6 @@ namespace PetBotCs
             var message = update.Message;
             var userName = update.Message.From.FirstName;
             long userId = update.Message.From.Id;
-            //var repliedUserName = update.Message.ReplyToMessage?.From.FirstName;
-            //long? repliedUserId = update.Message.ReplyToMessage?.From.Id;
-            //var repliedUserTag = update.Message.ReplyToMessage?.From.Username;
             var groupId = update.Message.Chat.Id;
 
             var checkp1Out = $"SELECT `p1id` FROM `duels` WHERE p1id = '{userId}';";
@@ -99,7 +99,7 @@ namespace PetBotCs
             string p2gotChallengeIn = p2CheckChallengeN2.FirstOrDefault(); //Проверка на наличие входящего запроса у того, кому адресован запрос
 
             if (userId == repliedUserId)
-            { await botClient.SendTextMessageAsync(message.Chat, "🤨Эй, у тебя не два хуя, чтобы сражаться с самим собой!"); }
+            { await botClient.SendTextMessageAsync(message.Chat, "🤨Эй, у тебя не два питомца, чтобы сражаться с самим собой!"); }
 
             else if (p1gotChallengeN1 != null && p2gotChallengeOut != null)
             { await botClient.SendTextMessageAsync(message.Chat, "⏱Прояви терпение! Ты уже отправил запрос на дуэль этому игроку!"); }
@@ -121,29 +121,118 @@ namespace PetBotCs
 
             else
             {
-                var newSession = $"INSERT INTO `duels` (`p1id`, `p2id`, `p1pos`, `p2pos`, `p1hp`, `p2hp`, `p1name`, `p2name`, `rootgroup`, `isAllowed`, `p1IsReady`, `p2IsReady`, `p1IsMoved`, `p2IsMoved`, `IsFriendly`) VALUES ('{userId}', '{repliedUserId}', '13', '3', '3', '3', '{userName}', '{repliedUserName}', {groupId}, '0', '0', '0', '0', '0', '0');";
-
-                var inline = new InlineKeyboardMarkup(new[]
+                try
                 {
+                    var GetP1CM = $"SELECT `size` FROM `group{groupId}` WHERE `name` = {userId};";
+                    List<string> p1cmStr = MySql().Read(GetP1CM, "size");
+                    int p1cm = int.Parse(p1cmStr[0]);
+
+                    var GetP2CM = $"SELECT `size` FROM `group{groupId}` WHERE `name` = {repliedUserId};";
+                    List<string> p2cmStr = MySql().Read(GetP2CM, "size");
+                    int p2cm = int.Parse(p2cmStr[0]);
+
+                    double prop = 0; //Используется для соотношений
+                    int biggerPet;
+                    if (p1cm > p2cm)
+                    {
+                        prop = p1cm / p2cm;
+                        biggerPet = 1;
+                    }
+
+                    else
+                    {
+                        prop = p2cm / p1cm;
+                        biggerPet = 2;
+                    }
+
+                    int roundedProp = (int)prop;
+                    int p1hp;
+                    int p2hp;
+                    switch (roundedProp)
+                    {
+                        case 1:
+                            p1hp = 3;
+                            p2hp = 3;
+                            break;
+                        case 2:
+                            if (biggerPet == 1)
+                            {
+                                p1hp = 4;
+                                p2hp = 2;
+                            }
+                            else
+                            {
+                                p1hp = 2;
+                                p2hp = 4;
+                            }
+                            break;
+                        case 3:
+                            if (biggerPet == 1)
+                            {
+                                p1hp = 5;
+                                p2hp = 2;
+                            }
+                            else
+                            {
+                                p1hp = 2;
+                                p2hp = 5;
+                            }
+                            break;
+                        case 4:
+                            if (biggerPet == 1)
+                            {
+                                p1hp = 5;
+                                p2hp = 1;
+                            }
+                            else
+                            {
+                                p1hp = 1;
+                                p2hp = 5;
+                            }
+                            break;
+                        default:
+                            if (biggerPet == 1)
+                            {
+                                p1hp = 5;
+                                p2hp = 1;
+                            }
+                            else
+                            {
+                                p1hp = 1;
+                                p2hp = 5;
+                            }
+                            break;
+                    }
+
+                    var inline = new InlineKeyboardMarkup(new[]
+                    {
                     new[]
                     {
-                        InlineKeyboardButton.WithUrl("Принять вызов", "https://t.me/Nakolennik_bot"),
+                        InlineKeyboardButton.WithUrl("Принять вызов", "URl в бота в формате https://t.me/..."),
                     }
                 });
 
-                await botClient.SendTextMessageAsync(message.Chat,
-                    $"⚔️Беседа, минуточку внимания!" +
-                    $"\n\n{userName} бросил вызов на дуэль игроку {repliedUserName}!" +
-                    $"\nВнимание, @{repliedUserTag}! Чтобы принять вызов, перейдите в ЛС бота!", replyMarkup: inline);
-                MySql().Read(newSession, "");
-                lobbyTimer.p1id = $"{userId}";
-                lobbyTimer.p2id = $"{repliedUserId}";
-                lobbyTimer.p1name = $"{userName}";
-                lobbyTimer.p2name = $"{repliedUserName}";
-                lobbyTimer.rootgroup = $"{groupId}";
-                lobbyTimer.WaitTimer = new System.Timers.Timer(900000);
-                lobbyTimer.WaitTimer.Elapsed += (sender, e) => TimerElapsed(sender, e, lobbyTimer);
-                lobbyTimer.WaitTimer.Start();
+                    var newSession = $"INSERT INTO `duels` (`p1id`, `p2id`, `p1pos`, `p2pos`, `p1hp`, `p2hp`, `p1name`, `p2name`, `rootgroup`, `isAllowed`, `p1IsReady`, `p2IsReady`, `p1IsMoved`, `p2IsMoved`, `IsFriendly`) VALUES ('{userId}', '{repliedUserId}', '13', '3', '{p1hp}', '{p2hp}', '{userName}', '{repliedUserName}', {groupId}, '0', '0', '0', '0', '0', '0');";
+                    await botClient.SendTextMessageAsync(message.Chat,
+                        $"⚔️Беседа, минуточку внимания!" +
+                        $"\n\n{userName} ({p1cm}) бросил вызов на дуэль игроку {repliedUserName} ({p2cm})!" +
+                        $"\nВнимание, @{repliedUserTag}! Чтобы принять вызов, перейдите в ЛС бота!", replyMarkup: inline);
+                    MySql().Read(newSession, "");
+                    lobbyTimer.p1id = $"{userId}";
+                    lobbyTimer.p2id = $"{repliedUserId}";
+                    lobbyTimer.p1name = $"{userName}";
+                    lobbyTimer.p2name = $"{repliedUserName}";
+                    lobbyTimer.rootgroup = $"{groupId}";
+                    lobbyTimer.WaitTimer = new System.Timers.Timer(900000);
+                    lobbyTimer.WaitTimer.Elapsed += (sender, e) => TimerElapsed(sender, e, lobbyTimer);
+                    lobbyTimer.WaitTimer.Start();
+                }
+                catch (Exception e) when (e.Message.Contains("Index was out of range."))
+                {
+                    await botClient.SendTextMessageAsync(message.Chat, "Кто-то из вас ещё не начал играть в /mypet! Нужно срочно исправлять положение, прописав команду /mypet!");
+                }
+
+
             }
         }
 
@@ -152,9 +241,6 @@ namespace PetBotCs
             var message = update.Message;
             var userName = update.Message.From.FirstName;
             long userId = update.Message.From.Id;
-            //var repliedUserName = update.Message.ReplyToMessage?.From.FirstName;
-            //long? repliedUserId = update.Message.ReplyToMessage?.From.Id;
-            //var repliedUserTag = update.Message.ReplyToMessage?.From.Username;
             var groupId = update.Message.Chat.Id;
 
             var checkp1Out = $"SELECT `p1id` FROM `duels` WHERE p1id = '{userId}';";
@@ -172,7 +258,7 @@ namespace PetBotCs
             string p2gotChallengeIn = p2CheckChallengeN2.FirstOrDefault(); //Проверка на наличие входящего запроса у того, кому адресован запрос
 
             if (userId == repliedUserId)
-            { await botClient.SendTextMessageAsync(message.Chat, "🤨Эй, у тебя не два хуя, чтобы сражаться с самим собой!"); }
+            { await botClient.SendTextMessageAsync(message.Chat, "🤨Эй, у тебя не два питомца, чтобы сражаться с самим собой!"); }
 
             if (p1gotChallengeN1 != null && p2gotChallengeOut != null)
             { await botClient.SendTextMessageAsync(message.Chat, "Прояви терпение! Ты уже отправил запрос на дуэль этому игроку!"); }
@@ -200,7 +286,7 @@ namespace PetBotCs
                 {
                 new[]
                     {
-                        InlineKeyboardButton.WithUrl("Принять вызов", "https://t.me/Nakolennik_bot"),
+                        InlineKeyboardButton.WithUrl("Принять вызов", "https://t.me/..."),
                     }
                 });
 
@@ -238,31 +324,86 @@ namespace PetBotCs
             }
             else if (Out.Count != 0)
             {
-                if (IsFriendly == "True")
+                var values = new string[] { "p2name", "p1hp", "p2hp" };
+                var ValuesGetter = $"SELECT `p2name`, `p1hp`, `p2hp` FROM `duels` WHERE p1id = '{userId}';";
+                List<Dictionary<string, object>> results = MySql().ExtRead(ValuesGetter, values);
+                foreach (var result in results)
                 {
-                    var FriendlyKeyboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton("Отменить вызов"), new KeyboardButton("Отключить дружескую дуэль") }) { ResizeKeyboard = true };
-                    await botClient.SendTextMessageAsync(message.Chat, "У вас есть исходящий вызов!", replyMarkup: FriendlyKeyboard);
+                    var p2name = result["p2name"].ToString();
+                    var p1hp = result["p1hp"].ToString();
+                    var p2hp = result["p2hp"].ToString();
+
+                    if (IsFriendly == "True")
+                    {
+                        ReplyKeyboardMarkup FriendlyKeyboard = new(new[] { new[] { new KeyboardButton("❔Правила"), new KeyboardButton("⚔️Отключить дружескую дуэль") }, new[] { new KeyboardButton("⛔️Отменить вызов") } }) { ResizeKeyboard = true };
+                        await botClient.SendTextMessageAsync(message.Chat, $"У тебя есть исходящий дружеский вызов игроку {p2name}! В начале игры у тебя будет {p1hp}, а у игрока {p2name} их будет {p2hp}!\nОжидаем подтверждения игры оппонентом!\nА пока при желании ты можешь ознакомиться с правилами или отменить вызов!", replyMarkup: FriendlyKeyboard);
+                    }
+                    else
+                    {
+                        ReplyKeyboardMarkup NotFriendlyKeyboard = new(new[] { new[] { new KeyboardButton("❔Правила"), new KeyboardButton("🤝Включить дружескую дуэль") }, new[] { new KeyboardButton("⛔️Отменить вызов") } }) { ResizeKeyboard = true };
+                        await botClient.SendTextMessageAsync(message.Chat, $"У тебя есть исходящий вызов игроку {p2name}! В начале игры у тебя будет {p1hp}, а у игрока {p2name} их будет {p2hp}!\nОжидаем подтверждения игры оппонентом!\nА пока при желании ты можешь ознакомиться с правилами или отменить вызов!", replyMarkup: NotFriendlyKeyboard);
+                    }
                 }
-                else
-                {
-                    var NotFriendlyKeyboard = new ReplyKeyboardMarkup(new[] { new KeyboardButton("Отменить вызов"), new KeyboardButton("Включить дружескую дуэль") }) { ResizeKeyboard = true };
-                    await botClient.SendTextMessageAsync(message.Chat, "У вас есть исходящий вызов!", replyMarkup: NotFriendlyKeyboard);
-                }
+
             }
             else if (In.Count != 0)
             {
-                var keyboard = new ReplyKeyboardMarkup(new[]
-                {new[]{new KeyboardButton("Принять вызов")},
-                new[]{new KeyboardButton("Отклонить вызов")}})
-                { ResizeKeyboard = true };
+                var p1nameGetter = $"SELECT `p1name` FROM `duels` WHERE p2id = '{userId}';";
+                var p1hpGetter = $"SELECT `p1hp` FROM `duels` WHERE p2id = '{userId}';";
+                var p2hpGetter = $"SELECT `p2hp` FROM `duels` WHERE p2id = '{userId}';";
 
-                await botClient.SendTextMessageAsync(message.Chat, "У вас есть входящий вызов!", replyMarkup: keyboard);
+                List<string> p1nameStr = MySql().Read(p1nameGetter, "p1name");
+                string p1name = p1nameStr.FirstOrDefault();
+
+                List<string> p1hpStr = MySql().Read(p1hpGetter, "p1hp");
+                string p1hp = p1hpStr.FirstOrDefault();
+
+                List<string> p2hpStr = MySql().Read(p2hpGetter, "p2hp");
+                string p2hp = p2hpStr.FirstOrDefault();
+
+                if (IsFriendly == "False")
+                {
+                    ReplyKeyboardMarkup NotFriendlyKeyboard = new(new[] { new[] { new KeyboardButton("❔Правила"), new KeyboardButton("🤝Предложить дружескую дуэль") }, new[] { new KeyboardButton("✅Принять вызов"), new KeyboardButton("❌Отклонить вызов") } }) { ResizeKeyboard = true };
+                    await botClient.SendTextMessageAsync(message.Chat, $"У тебя есть входящий дружеский вызов от игрока {p1name}! В начале игры у тебя будет {p2hp} жизней, а у игрока {p1name} их будет {p1hp}!\nОт тебя требуется лишь принять или отклонить вызов!\nОстались вопросы? При желании ты можешь ознакомиться с правилами игры или предложить дружескую дуэль!", replyMarkup: NotFriendlyKeyboard);
+                }
+
+                else if (IsFriendly == "True")
+                {
+                    ReplyKeyboardMarkup NotFriendlyKeyboard = new(new[] { new[] { new KeyboardButton("❔Правила"), new KeyboardButton("⚔️Предложить обычную дуэль") }, new[] { new KeyboardButton("⛔️Отменить вызов") } }) { ResizeKeyboard = true };
+                    await botClient.SendTextMessageAsync(message.Chat, $"У тебя есть входящий дружеский вызов от игрока {p1name}! В начале игры у тебя будет {p2hp} жизней, а у игрока {p1name} их будет {p1hp}!\nОт тебя требуется лишь принять или отклонить вызов!\nОстались вопросы? При желании ты можешь ознакомиться с правилами игры или предложить дружескую дуэль!", replyMarkup: NotFriendlyKeyboard);
+                }
+            }
+        }
+
+        public static void RequestDuelStatusChange(ITelegramBotClient botClient, long userId, string FirstName)
+        {
+            var GetIsFriendly = $"SELECT `IsFriendly` FROM `duels` WHERE `p1id` = {userId} OR `p2id` = {userId};";
+            List<string> IsFriendlyStr = MySql().Read(GetIsFriendly, "IsFriendly");
+            string IsFriendly = IsFriendlyStr.FirstOrDefault();
+
+            var p1nameGetter = $"SELECT `p1name` FROM `duels` WHERE p2id = '{userId}';";
+            List<string> p1nameStr = MySql().Read(p1nameGetter, "p1name");
+            string p1name = p1nameStr.FirstOrDefault();
+
+            var p1idGetter = $"SELECT `p1id` FROM `duels` WHERE p2id = {userId};";
+            List<string> p1idStr = MySql().Read(p1idGetter, "p1id");
+            string p1id = p1idStr.FirstOrDefault();
+
+            if (IsFriendly == "False")
+            {
+                botClient.SendTextMessageAsync(userId, $"{p1name} получил ваше предложение!");
+                botClient.SendTextMessageAsync(p1id, $"{FirstName} предлагает включить дружескую дуэль!");
+            }
+
+            else if (IsFriendly == "True")
+            {
+                botClient.SendTextMessageAsync(userId, $"{p1name} получил ваше предложение!");
+                botClient.SendTextMessageAsync(p1id, $"{FirstName} предлагает отключить дружескую дуэль!");
             }
         }
 
         public static async Task ChallengeAccept(ITelegramBotClient botClient, Update update, LobbyTimer lobbyTimer)
         {
-            var message = update.Message;
             long userId = update.Message.From.Id;
             var keyboard = new ReplyKeyboardMarkup(new[]
             {
@@ -289,34 +430,34 @@ namespace PetBotCs
                     var SetGameStart = $"UPDATE `duels` SET `isAllowed` = '1' WHERE p2id = '{userId}';";
                     await botClient.SendTextMessageAsync
                         ($"{p2id}", $"Вызов на дуэль от игрока {p1name} принят!\n" +
-                                    $"Подготовься к бою и ознакомься с правилами:\n" +
-                                    $"1. Битва будет проходить на поле 3x3, каждый из оппонентов начинает игру в противоположных углах поля: {p1name} начнёт игру с левого нижнего угла, {p2name} начнёт игру с правого верхнего! Обоим игрокам будет выдано по 3 жизни\n" +
-                                    $"2. Каждый игрок имеет право сделать по одному ходу за раз в любом из четырёх направлений: вверх, вниз, вправо или влево. После каждого взмаха действует кулдаун в 1 секунду!\n" +
-                                    $"3. При столкновении двух игроков на одной позиции считается, что ваши питомцы отразили друг друга! При таком условии засчитывается ничья, и каждый откатывается до первоначальных позиций!\n" +
-                                    $"4. Если один из игроков попадает на позицию второго игрока - у того, кто стоял на этой клетке раньше - отнимается жизнь!\n" +
-                                    $"5. Игра автоматически заканчивается по истечении 15 минут, либо когда один из игроков потерял все свои жизни! В этом случае победа засчитывается тому, кто смог сохранить жизни!\n" +
-                                    $"6. У проигравшего игрока автоматически снимается рандомное количество размеров его питомца (7-10), и отнятое значение присоединяется победителю!\n" +
-                                    $"\n" +
-                                    $"Всё понятно? Готов к игре? Тогда жми кнопку \"Готов\"! Желаю удачи!", replyMarkup: keyboard);
+                                       $"Подготовьтесь к бою и ознакомьтесь с правилами:\n" +
+                                       $"1. Битва будет проходить на поле 3x3, каждый из оппонентов начинает игру в противоположных углах поля: {p1name} начнёт игру с левого нижнего угла, {p2name} начнёт игру с правого верхнего! Обоим игрокам будет выдано определённое количество жизней (чем больше питомец - тем больше жизней)!\n" +
+                                       $"2. Каждый игрок имеет право сделать по одному ходу за раз в любом из четырёх направлений: вверх, вниз, вправо или влево. После каждого взмаха действует кулдаун в 1 секунду!\n" +
+                                       $"3. При столкновении двух питомцев на одной позиции считается, что ваши питомцы отразили друг друга! При таком условии засчитывается ничья, и каждый откатывается до первоначальных позиций!\n" +
+                                       $"4. Если один из игроков попадает на позицию второго игрока - у того, кто стоял на этой клетке раньше - отнимается жизнь!\n" +
+                                       $"5. Игра автоматически заканчивается по истечении 10 минут, либо когда один из игроков потерял все свои жизни! В этом случае победа засчитывается тому, кто смог сохранить жизни!\n" +
+                                       $"6. У проигравшего игрока автоматически снимается рандомное количество размера его питомца (7-10), и отнятое значение присоединяется победителю!\n" +
+                                       $"\n" +
+                                       $"Всё понятно? Готов к игре? Тогда жми кнопку \"Готов\"! Желаю удачи!", replyMarkup: keyboard);
 
                     try
                     {
                         await botClient.SendTextMessageAsync
                         ($"{p1id}", $"Внимание! Игрок {p2name} принял ваш вызов на дуэль!\n" +
                                     $"Подготовьтесь к бою и ознакомьтесь с правилами:\n" +
-                                    $"1. Битва будет проходить на поле 3x3, каждый из оппонентов начинает игру в противоположных углах поля: {p1name} начнёт игру с левого нижнего угла, {p2name} начнёт игру с правого верхнего! Обоим игрокам будет выдано по 3 жизни\n" +
+                                    $"1. Битва будет проходить на поле 3x3, каждый из оппонентов начинает игру в противоположных углах поля: {p1name} начнёт игру с левого нижнего угла, {p2name} начнёт игру с правого верхнего! Обоим игрокам будет выдано определённое количество жизней, зависящее от размеров питомца (чем больше питомец - тем больше жизней)!\n" +
                                     $"2. Каждый игрок имеет право сделать по одному ходу за раз в любом из четырёх направлений: вверх, вниз, вправо или влево. После каждого взмаха действует кулдаун в 1 секунду!\n" +
-                                    $"3. При столкновении двух хуёв на одной позиции считается, что ваши шпаги отразили друг друга! При таком условии засчитывается ничья, и каждый откатывается до первоначальных позиций!\n" +
+                                    $"3. При столкновении двух питомцев на одной позиции считается, что ваши питомцы отразили друг друга! При таком условии засчитывается ничья, и каждый откатывается до первоначальных позиций!\n" +
                                     $"4. Если один из игроков попадает на позицию второго игрока - у того, кто стоял на этой клетке раньше - отнимается жизнь!\n" +
                                     $"5. Игра автоматически заканчивается по истечении 10 минут, либо когда один из игроков потерял все свои жизни! В этом случае победа засчитывается тому, кто смог сохранить жизни!\n" +
-                                    $"6. У проигравшего игрока автоматически снимается рандомное количество размеров его питомца (7-10), и отнятое значение присоединяется победителю!\n" +
+                                    $"6. У проигравшего игрока автоматически снимается рандомное количество размера его питомца (7-10), и отнятое значение присоединяется победителю!\n" +
                                     $"\n" +
                                     $"Всё понятно? Готов к игре? Тогда жми кнопку \"Готов\"! Желаю удачи!", replyMarkup: keyboard);
                         await botClient.SendTextMessageAsync($"{rootgroup}", $"Внимание беседа! {p2name} принял вызов на дуэль от игрока {p1name}!\nОжидаем готовности обоих участников дуэли!");
                     }
                     catch (ApiRequestException ex) when (ex.Message.Contains("Forbidden: bot can't initiate conversation with a user"))
                     {
-                        await botClient.SendTextMessageAsync($"{rootgroup}", $"Внимание беседа! {p2name} принял вызов на дуэль на хуях от игрока {p1name}!\nОжидаем готовности обоих участников дуэли!\n\nОбращение к пользователю {p1name}: Чтобы запустить игру - необходимо начать ЛС со мной! перейди ко мне в чат и напиши /start!");
+                        await botClient.SendTextMessageAsync($"{rootgroup}", $"Внимание беседа! {p2name} принял вызов на дуэль от игрока {p1name}!\nОжидаем готовности обоих участников дуэли!\n\nОбращение к пользователю {p1name}: Чтобы запустить игру - необходимо начать ЛС со мной! перейди ко мне в чат и напиши /start!");
                     }
 
                     MySql().Read(SetGameStart, "");
@@ -488,9 +629,9 @@ namespace PetBotCs
                             $"Игра скоро начнётся!");
                         MySql().Read(p1SetReady, "");
                         var GameDelete = $"DELETE FROM `duels` WHERE `p1id` = '{userId}';";
-                        Game.Game dickfight = new Game.Game(userId);
-                        dickfight.StartGame(botClient, update);
-                        Games.Add(dickfight);
+                        Game.Game petfight = new Game.Game(userId);
+                        petfight.StartGame(botClient, update);
+                        Games.Add(petfight);
                     }
                     else if (p2id == $"{userId}" && p1IsReady == "True")
                     {
@@ -504,10 +645,9 @@ namespace PetBotCs
                             $"\n" +
                             $"Игра скоро начнётся!");
                         MySql().Read(p2SetReady, "");
-                        Game.Game dickfight = new Game.Game(userId);
-                        dickfight.StartGame(botClient, update);
-                        Games.Add(dickfight);
-                        Console.WriteLine(Games);
+                        Game.Game petfight = new Game.Game(userId);
+                        petfight.StartGame(botClient, update);
+                        Games.Add(petfight);
                         lobbyTimer.WaitTimer.Stop();
                         lobbyTimer.WaitTimer.Dispose();
                     }
@@ -580,7 +720,7 @@ namespace PetBotCs
         }
         private static void TimerElapsed(object sender, ElapsedEventArgs e, LobbyTimer lobbyTimer)
         {
-            ITelegramBotClient botClient = new TelegramBotClient("Ключ Telegram-бота");
+            ITelegramBotClient botClient = new TelegramBotClient(appConfig.Config.BotToken);
             Update update = new();
             var keyboard = new ReplyKeyboardMarkup(new[]
             {

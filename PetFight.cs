@@ -33,7 +33,7 @@ namespace PetBotCs
         public void MoveTo(Direction direction, Game.Game game, ITelegramBotClient botClient, long userId)
         {
             string[] strings = { "p1IsMoved", "p2IsMoved" };
-            sql database = new("Данные для подключения к SQL");
+            sql database = new(appConfig.Config.MySQLConnection);
             var IsMovedGet = $"SELECT `p1IsMoved`, `p2IsMoved` FROM `duels` WHERE `p1id` = {Id} OR `p2id` = {Id};";
             List<Dictionary<string, object>> IsMoved = database.ExtRead(IsMovedGet, strings);
             foreach (var result in IsMoved)
@@ -109,15 +109,15 @@ namespace PetBotCs
                 game.GetPlayerByUserId(userId).PosCooldown.Dispose();
                 game.GetPlayerByUserId(userId).PosCooldown = null;
             }
-            sql database = new("Данные для подключения к SQL");
+            sql database = new(appConfig.Config.MySQLConnection);
         }
 
         public void CooldownElapsed(object sender, ElapsedEventArgs e, long userId, Game.Game game)
         {
             Cooldown.Stop();
             Cooldown.Dispose();
-            ITelegramBotClient botClient = new TelegramBotClient("Ключ Telegram-бота");
-            sql database = new("Данные для подключения к SQL");
+            ITelegramBotClient botClient = new TelegramBotClient(appConfig.Config.BotToken);
+            sql database = new(appConfig.Config.MySQLConnection);
             ReplyKeyboardMarkup keyboard = null;
             if (game.GetPlayerByUserId(userId).Pos.Equals(1))
                 keyboard = Keyboard.LeftUp;

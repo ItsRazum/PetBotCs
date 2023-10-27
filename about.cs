@@ -19,7 +19,7 @@ namespace PetBotCs
 
         public static async Task UpdateLog(ITelegramBotClient botClient, Update update)
         {
-            sql database = new("Данные для подключения к SQL");
+            sql database = new("server=127.0.0.1;uid=phpmyadmin;pwd=oralcumshot;database=phpmyadmin");
             List<string> tableNames = database.GetTableNames();
             foreach (string tableName in tableNames)
             {
@@ -32,8 +32,8 @@ namespace PetBotCs
                         await botClient.SendTextMessageAsync(groupId, $"Обновление \"{(await botClient.GetMeAsync()).FirstName}\" v1.0" +
                         "\nЧто нового:" +
                         "\n1. Добавлены команды:" +
-                        "\n• /dickfight" +
-                        "\n• /friendlydickfight" +
+                        "\n• /petfight" +
+                        "\n• /friendlypetfight" +
                         "\n• /about" +
                         "\n2. Изменена структура поведения бота при добавлении в группу: теперь он не будет покидать другие группы, т.е. каждый может добавить его к себе в группу" +
                         "\n3. Множество косметических дополнений для сообщений от бота" +

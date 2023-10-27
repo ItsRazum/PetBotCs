@@ -13,7 +13,7 @@ namespace PetBotCs
 {
     internal class Start
     {
-        static sql database = new("Данные для подключения к SQL");
+        static sql database = new(appConfig.Config.MySQLConnection);
         public static async Task Keyboard(ITelegramBotClient botClient, Update update)
         {
             var message = update.Message;
